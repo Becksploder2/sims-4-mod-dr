@@ -1,0 +1,44 @@
+name: Compile Realistic Glasses Diagnostic
+on:
+  push:
+    paths:
+      - 'tools/eyewear_diagnostics/**'
+      - '.github/workflows/compile-eyewear-diagnostic.yml'
+  workflow_dispatch:
+jobs:
+  compile:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.7'
+      - name: Compile and verify Python 3.7 bytecode
+        shell: pwsh
+        run: |
+          @'
+          import importlib.util
+          import py_compile
+          import zipfile
+          import pathlib
+          import sys
+          source = pathlib.Path('tools/eyewear_diagnostics/eyewear_diagnostics.py')
+          destination = pathlib.Path('Realistic_Glasses_v1_0_COMPILED_DIAGNOSTIC.ts4script')
+          compiled = pathlib.Path('eyewear_diagnostics.pyc')
+          py_compile.compile(str(source), cfile=str(compiled), doraise=True)
+          with zipfile.ZipFile(str(destination), 'w', zipfile.ZIP_DEFLATED) as z:
+              z.write(str(compiled), arcname='eyewear_diagnostics.pyc')
+          with zipfile.ZipFile(str(destination)) as z:
+              assert z.testzip() is None
+              names = z.namelist()
+              assert names == ['eyewear_diagnostics.pyc'], names
+              data = z.read(names[0])
+              assert data[:4] == importlib.util.MAGIC_NUMBER
+              print('Compiled with:', sys.version, 'bytecode magic:', data[:4].hex(), 'size:', len(data))
+          '@ | Set-Content -Encoding UTF8 compile_diagnostic.py
+          python compile_diagnostic.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Realistic-Glasses-v1-0-Compiled-Diagnostic
+          path: Realistic_Glasses_v1_0_COMPILED_DIAGNOSTIC.ts4script
+          if-no-files-found: error
