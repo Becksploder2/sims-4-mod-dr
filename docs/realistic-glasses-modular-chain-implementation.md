@@ -59,3 +59,13 @@ In one live-game test, Karli-Rae's chosen round reading frames visibly move from
 - Test repeated Hang/Put On actions, outfit changes, two-pair swaps and missing CC. Ensure no duplicate eyewear, no chain popping into view unrelated to the selected frame, and no inventory case appearing unless independently enabled.
 
 **Current status:** specifications approved for implementation; these protections must be applied to the next code/build before claiming support for arbitrary plain necklaces or correct hanging-frame visuals.
+
+## Frame-shape-aware regular/reading chain selection
+
+- Treat regular and reading glasses as **independent** exact CAS-part assignments, including frame swatch. A Sim may have square readers and a completely different shape for regular glasses.
+- Resolve the matching hanging part by exact face-glasses CAS part ID, chosen chain style, and compatible swatch. Record optional human-readable frame-shape metadata (square, round, rectangle, oval, cat-eye, etc.) for UI and asset generation **only**.
+- Do not infer 3D frame geometry from a part ID's number or shape label. Shape alone cannot produce a rigged necklace accessory; validated authored hanging variants are required.
+- If a user changes frames from round to square, invalidate the prior hanging-pair mapping until a matching square-frame asset is installed. Never reuse the former shape or auto-equip stock glasses from an unrelated necklace.
+- For mixed arrangements, resolve **face-worn regular part** separately from **hanging reading part**, and vice versa. Do not overwrite either saved pair when toggling.
+- Frame shape should drive the offline mesh-authoring pipeline (frame width, rim contours, bridge, temples, scale and pose), not live-game arbitrary deformation.
+- Acceptance: Karli-Rae can wear regular frames on her face and matching **square** readers on a plain chosen chain at her neck, with no unrelated pair appearing. If matching square asset missing, show a clear unavailable message without changing CAS.
