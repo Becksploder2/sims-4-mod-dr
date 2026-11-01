@@ -3,7 +3,7 @@ Standalone diagnostic/gameplay prototype. No CAS outfit mutation or custom trait
 """
 # Memory-only test: no filesystem, network, subprocess or executable operations.
 MOD_VERSION = "1.9"
-CONTEXTS = ("day", "night", "school", "work", "cheer", "reading", "computer", "home", "outside")
+CONTEXTS = ("day", "night", "school", "work", "cheer", "sports", "reading", "homework", "computer", "crafting", "phone", "home", "outside")
 PREFS = ("loves", "hates", "reluctant", "neutral")
 CONDITIONS = ("normal", "myopia", "hyperopia", "astigmatism", "presbyopia", "anisometropia", "amblyopia", "strabismus", "color_vision_deficiency", "dry_eye", "allergic_conjunctivitis", "infectious_conjunctivitis", "blepharitis", "cataracts", "glaucoma", "keratoconus", "photophobia", "diplopia", "nystagmus", "retinal_disorders", "low_vision", "blindness", "digital_eye_strain")
 _DATA = {"version": 1, "sims": {}}
@@ -36,6 +36,9 @@ def _profile(sim):
     record = _DATA["sims"][key]
     record.setdefault("glasses_part", None)
     record.setdefault("reading_part", None)
+    record.setdefault("sports_outfits", [])
+    record.setdefault("cheer_outfits", [])
+    record.setdefault("sports_glasses_enabled", True)
     record.setdefault("reading_auto", True)
     record.setdefault("use_regular_for_reading", False)
     record.setdefault("reading_activities", ["reading", "homework", "computer", "crafting", "phone"])
@@ -227,6 +230,41 @@ try:
         _say(_connection, "Commands: eyewear.ping / status / preference hates|loves / condition myopia / exam / prescribe 45 95 / glasses on|off|auto / schedule cheer on / schedule enable / context cheer / contexts")
         return True
 
+
+
+    def _outfit_key(sim):
+        category, index = sim.sim_info.get_current_outfit()
+        return "{}:{}".format(int(category), int(index))
+
+    @sims4.commands.Command("eyewear.outfit", command_type=sims4.commands.CommandType.Live)
+    def set_outfit(kind: str = "sports", mode: str = "mark", _connection=None):
+        sim = _active(_connection)
+        if sim is None:
+            _say(_connection, "Select a Sim in Live Mode")
+            return False
+        p = _profile(sim)
+        if kind not in ("sports", "cheer") or mode not in ("mark", "unmark", "list"):
+            _say(_connection, "Use eyewear.outfit sports|cheer mark|unmark|list")
+            return False
+        key = kind + "_outfits"
+        if mode == "mark":
+            p[key] = sorted(set(p[key]) | {_outfit_key(sim)})
+        elif mode == "unmark":
+            p[key] = sorted(set(p[key]) - {_outfit_key(sim)})
+        _say(_connection, "{} outfits: {}".format(kind, ", ".join(p[key]) or "none"))
+        return True
+
+    @sims4.commands.Command("eyewear.sports", command_type=sims4.commands.CommandType.Live)
+    def sports_rule(value: str = "on", _connection=None):
+        p = _with_sim(_connection)
+        if p is None:
+            return False
+        if value not in ("on", "off"):
+            _say(_connection, "Use eyewear.sports on|off")
+            return False
+        p["sports_glasses_enabled"] = value == "on"
+        _say(_connection, "Sports-event regular glasses rule: " + value)
+        return True
 
     # CAS switching prototype; uses the selected Sim's current outfit only.
     GLASSES_SLOT = 11
