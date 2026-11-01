@@ -405,5 +405,115 @@ try:
             _say(_connection,"Status error: "+str(exc))
             return False
     
+
+    def _reading_part(profile):
+        return profile["glasses_part"] if profile["use_regular_for_reading"] else profile["reading_part"]
+
+    def _set_reading_mode(sim, active):
+        profile = _profile(sim)
+        if active:
+            if not profile["reading_auto"] or profile["reading_manual_override"]:
+                return False
+            part = _reading_part(profile)
+            if part is None:
+                return False
+            if profile["reading_active"]:
+                return True
+            _, previous = outfit_change(sim, "read")
+            modified, _ = outfit_change(sim, "on", part)
+            profile["reading_previously_worn"] = previous
+            profile["reading_active"] = True
+            return True
+        if not profile["reading_active"]:
+            return True
+        # Restore previous eyewear and preserve non-eyewear CAS parts.
+        previous = profile["reading_previously_worn"]
+        if previous is None:
+            outfit_change(sim, "off")
+        else:
+            outfit_change(sim, "on", previous)
+        profile["reading_active"] = False
+        profile["reading_previously_worn"] = None
+        return True
+
+    @sims4.commands.Command("eyewear.reading.capture", command_type=sims4.commands.CommandType.Live)
+    def capture_reading(_connection=None):
+        sim = _active(_connection)
+        if sim is None:
+            return False
+        try:
+            _, part = outfit_change(sim, "read")
+            if part is None:
+                _say(_connection, "Wear reading glasses in CAS first, then capture")
+                return False
+            _profile(sim)["reading_part"] = part
+            _say(_connection, "Reading pair assigned: " + hex(part))
+            return True
+        except Exception as exc:
+            _say(_connection, "Reading capture failed: " + str(exc))
+            return False
+
+    @sims4.commands.Command("eyewear.reading.auto", command_type=sims4.commands.CommandType.Live)
+    def reading_auto(value: str = "on", _connection=None):
+        p = _with_sim(_connection)
+        if p is None or value not in ("on", "off"):
+            return False
+        p["reading_auto"] = value == "on"
+        _say(_connection, "Automatic reading eyewear: " + value)
+        return True
+
+    @sims4.commands.Command("eyewear.reading.shared", command_type=sims4.commands.CommandType.Live)
+    def shared_reading(value: str = "on", _connection=None):
+        p = _with_sim(_connection)
+        if p is None or value not in ("on", "off"):
+            return False
+        p["use_regular_for_reading"] = value == "on"
+        _say(_connection, "Use regular glasses for reading: " + value)
+        return True
+
+    @sims4.commands.Command("eyewear.reading.activity", command_type=sims4.commands.CommandType.Live)
+    def reading_activity(kind: str = "reading", phase: str = "start", _connection=None):
+        sim = _active(_connection)
+        if sim is None:
+            return False
+        p = _profile(sim)
+        if kind not in ("reading", "homework", "computer", "crafting", "phone") or phase not in ("start", "end"):
+            _say(_connection, "Use eyewear.reading.activity reading|homework|computer|crafting|phone start|end")
+            return False
+        if kind not in p["reading_activities"]:
+            _say(_connection, "Activity disabled: " + kind)
+            return False
+        try:
+            _set_reading_mode(sim, phase == "start")
+            _say(_connection, "Reading activity: {} {}, active={}".format(kind, phase, p["reading_active"]))
+            return True
+        except Exception as exc:
+            _say(_connection, "Reading activity error: " + str(exc))
+            return False
+
+    @sims4.commands.Command("eyewear.reading.trigger", command_type=sims4.commands.CommandType.Live)
+    def reading_trigger(kind: str = "reading", value: str = "on", _connection=None):
+        p = _with_sim(_connection)
+        if p is None or kind not in ("reading", "homework", "computer", "crafting", "phone") or value not in ("on", "off"):
+            return False
+        chosen = set(p["reading_activities"])
+        if value == "on":
+            chosen.add(kind)
+        else:
+            chosen.discard(kind)
+        p["reading_activities"] = sorted(chosen)
+        _say(_connection, "Reading eyewear activities: " + ", ".join(p["reading_activities"]))
+        return True
+
+    @sims4.commands.Command("eyewear.reading.status", command_type=sims4.commands.CommandType.Live)
+    def reading_status(_connection=None):
+        p = _with_sim(_connection)
+        if p is None:
+            return False
+        _say(_connection, "Reading auto={} shared={} part={} active={} activities={}".format(
+            p["reading_auto"], p["use_regular_for_reading"], p["reading_part"],
+            p["reading_active"], ",".join(p["reading_activities"])))
+        return True
+
 except Exception:
     raise
