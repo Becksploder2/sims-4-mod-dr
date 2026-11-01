@@ -1,0 +1,62 @@
+name: Build Realistic Glasses v1.8 XML Injector RC
+on:
+  push:
+    paths:
+      - 'tools/eyewear_v1_8/**'
+      - '.github/workflows/build-eyewear-v1-8.yml'
+  workflow_dispatch:
+jobs:
+  candidate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.7'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile Python 3.7 script archive
+        shell: pwsh
+        run: |
+          @'
+          import importlib.util, pathlib, py_compile, zipfile
+          src=pathlib.Path('tools/eyewear_v1_8')
+          output='Realistic_Glasses_v1_8.ts4script'
+          with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as z:
+              for filename in ('realistic_glasses.py','eyewear_menu.py'):
+                  compiled=pathlib.Path(filename+'c')
+                  py_compile.compile(str(src/filename),cfile=str(compiled),doraise=True)
+                  assert compiled.read_bytes()[:4]==importlib.util.MAGIC_NUMBER
+                  z.write(str(compiled),arcname=filename+'c')
+          with zipfile.ZipFile(output) as z:
+              assert z.testzip() is None
+              assert len(z.namelist())==2
+          '@ | Set-Content -Encoding UTF8 build_eyewear.py
+          python build_eyewear.py
+      - name: Generate XML Injector snippet and interaction XML
+        shell: pwsh
+        run: python tools/eyewear_v1_8/build_package.py
+      - name: Build DBPF writer
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/PhuVinhAI/ModTS4.git dbpf-tools
+          dotnet restore dbpf-tools/tools/Ts4PackageTool/Ts4PackageTool.csproj --locked-mode --nologo
+          dotnet build dbpf-tools/tools/Ts4PackageTool/Ts4PackageTool.csproj --configuration Release --no-restore --nologo
+      - name: Create and validate package
+        shell: pwsh
+        run: |
+          $tool='dbpf-tools/tools/Ts4PackageTool/bin/Release/net8.0/Ts4PackageTool.dll'
+          dotnet $tool encode-stbl build/eyewear_v1_8/strings.json build/eyewear_v1_8/eyewear.stbl
+          if ($LASTEXITCODE -ne 0) { throw 'String table encoding failed' }
+          dotnet $tool create build/eyewear_v1_8/manifest.json Realistic_Glasses_v1_8.package
+          if ($LASTEXITCODE -ne 0) { throw 'Package creation failed' }
+          dotnet $tool validate Realistic_Glasses_v1_8.package
+          if ($LASTEXITCODE -ne 0) { throw 'Package validation failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Realistic-Glasses-v1-8-XML-Injector-Test
+          path: |
+            Realistic_Glasses_v1_8.ts4script
+            Realistic_Glasses_v1_8.package
+          if-no-files-found: error
