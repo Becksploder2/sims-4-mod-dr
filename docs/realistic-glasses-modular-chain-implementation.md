@@ -40,3 +40,22 @@ Sims 4 Studio and a compatible Blender workflow for CAS mesh authoring; XML Inje
 
 ## Acceptance criteria
 In one live-game test, Karli-Rae's chosen round reading frames visibly move from face to a matching hanging mesh without changing shape/style, then return to face. Regular frame remains separately remembered. The same mechanism works for a second Sim with a different authored pair. No queue hang, missing-data errors, invisible necklace, or unrelated frames.
+
+## New mandatory compatibility rules: plain chains and no unwanted accessory spawn
+
+**A — Use compatible existing necklaces as chain styles.**
+- The user can assign a necklace that has no pendant/object already hanging from its center as the **source chain style** for regular or reading glasses.
+- Classification as "plain" must be through a reviewed compatibility manifest or a creator opt-in. A CAS necklace-slot ID alone cannot tell the script whether its mesh has a pendant, nor guarantee the chain connects to the temples or is long enough.
+- In the asset-creation pipeline, clone/rebuild the necklace mesh with a compatible hanging version of the selected frames; create proper attachment points and rigging. A chain-only necklace is not itself a valid glasses-around-neck appearance unless a matching glasses mesh is included.
+- If the user has another non-glasses necklace equipped in the same slot, warn about the conflict; don't silently replace it. Keep an original necklace to restore after removing the hanging glasses.
+- Allow distinct regular-pair and reading-pair chain assignments, but use only currently installed verified combinations.
+
+**B — Never spawn or automatically substitute an unrelated glasses-and-chain accessory.**
+- Selecting Hang Glasses must **NOT** equip the stock EA/CC necklace containing a different frame merely because that necklace was previously captured.
+- Require an exact registered match of `face_glasses_part_id + chain_style_id + desired_hanging_part_id` (and supported swatch) before doing *any* face/off or necklace/on operation.
+- If there is no match, leave the current face glasses and necklace **unchanged** and display: "No matching hanging version for this frame and chain is installed."
+- Make necklace generation a separate offline CAS mesh authoring step, **not a Live Mode auto-spawn**. Do not duplicate accessory instances, and do not show two visible glasses-and-chain assemblies when a pair is already hanging.
+- When putting glasses on again, remove only the mod's tracked hanging part; restore the original necklace if appropriate. Never strip unrelated jewelry.
+- Test repeated Hang/Put On actions, outfit changes, two-pair swaps and missing CC. Ensure no duplicate eyewear, no chain popping into view unrelated to the selected frame, and no inventory case appearing unless independently enabled.
+
+**Current status:** specifications approved for implementation; these protections must be applied to the next code/build before claiming support for arbitrary plain necklaces or correct hanging-frame visuals.
