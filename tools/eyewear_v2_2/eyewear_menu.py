@@ -40,6 +40,7 @@ class _EyewearAction(ImmediateSuperInteraction):
                         profile["last_action"] = "Could not remove glasses; inventory case rolled back"
                         return False
                     profile["glasses_part"] = previous
+                    profile["inventory_case"] = case
                     profile["last_action"] = "Glasses removed and case added to inventory"
                     return True
                 except Exception as exc:
@@ -63,6 +64,14 @@ class _EyewearAction(ImmediateSuperInteraction):
                     return False
                 changed, _ = outfit_change(sim, "on", chosen)
                 _, visible_part = outfit_change(sim, "read")
+                if visible_part == chosen and action == "on":
+                    case = profile.pop("inventory_case", None)
+                    if case is not None:
+                        try:
+                            case.destroy()
+                        except Exception as exc:
+                            profile["last_action"] = "Glasses restored; inventory case removal failed: " + str(exc)
+                            return True
                 profile["last_action"] = "Put on glasses: {} (outfit readback={})".format("updated" if changed else "unchanged", hex(visible_part) if visible_part else "none")
                 return bool(changed)
             if action in ("mark_sports", "mark_cheer"):
