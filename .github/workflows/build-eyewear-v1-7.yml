@@ -1,0 +1,66 @@
+name: Build Realistic Glasses v1.7 Script + Package
+on:
+  push:
+    paths:
+      - 'tools/eyewear_v1_7/**'
+      - '.github/workflows/build-eyewear-v1-7.yml'
+  workflow_dispatch:
+jobs:
+  release-candidate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.7'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile all game modules with Python 3.7
+        shell: pwsh
+        run: |
+          @'
+          import importlib.util
+          import pathlib
+          import py_compile
+          import sys
+          import zipfile
+          source=pathlib.Path('tools/eyewear_v1_7')
+          files=['realistic_glasses.py','eyewear_menu.py','eyewear_register.py']
+          archive=pathlib.Path('Realistic_Glasses_v1_7.ts4script')
+          with zipfile.ZipFile(str(archive),'w',zipfile.ZIP_DEFLATED) as z:
+              for name in files:
+                  compiled=pathlib.Path(name+'c')
+                  py_compile.compile(str(source/name),cfile=str(compiled),doraise=True)
+                  assert compiled.read_bytes()[:4]==importlib.util.MAGIC_NUMBER
+                  z.write(str(compiled),arcname=name+'c')
+          with zipfile.ZipFile(str(archive)) as z:
+              assert z.testzip() is None
+              assert len(z.namelist()) == 3
+          print('Python version:',sys.version,'archive bytes:',archive.stat().st_size)
+          '@ | Set-Content -Encoding UTF8 build_script.py
+          python build_script.py
+      - name: Prepare XML interaction tuning
+        shell: pwsh
+        run: python tools/eyewear_v1_7/build_package.py
+      - name: Obtain pinned-API package writer
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/PhuVinhAI/ModTS4.git dbpf-tools
+          dotnet restore dbpf-tools/tools/Ts4PackageTool/Ts4PackageTool.csproj --locked-mode --nologo
+          dotnet build dbpf-tools/tools/Ts4PackageTool/Ts4PackageTool.csproj --configuration Release --no-restore --nologo
+      - name: Encode string table, create and validate real DBPF package
+        shell: pwsh
+        run: |
+          $tool='dbpf-tools/tools/Ts4PackageTool/bin/Release/net8.0/Ts4PackageTool.dll'
+          dotnet $tool encode-stbl build/eyewear_v1_7/strings.json build/eyewear_v1_7/eyewear.stbl
+          dotnet $tool create build/eyewear_v1_7/manifest.json Realistic_Glasses_v1_7.package
+          dotnet $tool validate Realistic_Glasses_v1_7.package
+          if ($LASTEXITCODE -ne 0) { throw 'DBPF validation failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Realistic-Glasses-v1-7-Menu-And-Switching-RC
+          path: |
+            Realistic_Glasses_v1_7.ts4script
+            Realistic_Glasses_v1_7.package
+          if-no-files-found: error
