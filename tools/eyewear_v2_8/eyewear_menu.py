@@ -206,4 +206,8 @@ class VisionEyewearHangNeck(_EyewearAction): ACTION = "neck_hang"
 class VisionEyewearPutOnFromNeck(_EyewearAction): ACTION = "neck_wear"
 class VisionEyewearFaceAndNeck(_EyewearAction): ACTION = "neck_both"
 class VisionEyewearRemoveNeck(_EyewearAction): ACTION = "neck_remove"
-\nclass VisionEyewearAssignRegularChain(_EyewearAction): ACTION = "chain_regular"\nclass VisionEyewearAssignReadingChain(_EyewearAction): ACTION = "chain_reading"\nclass VisionEyewearHangReading(_EyewearAction): ACTION = "neck_hang_reading"\nclass VisionEyewearHangRegular(_EyewearAction): ACTION = "neck_hang_regular"\n
+
+class VisionEyewearAssignRegularChain(_EyewearAction): ACTION = "chain_regular"
+class VisionEyewearAssignReadingChain(_EyewearAction): ACTION = "chain_reading"
+class VisionEyewearHangReading(_EyewearAction): ACTION = "neck_hang_reading"
+class VisionEyewearHangRegular(_EyewearAction): ACTION = "neck_hang_regular"
