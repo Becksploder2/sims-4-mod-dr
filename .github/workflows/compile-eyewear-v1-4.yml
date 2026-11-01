@@ -1,0 +1,42 @@
+name: Compile Realistic Glasses v1.4 Playtest
+on:
+  push:
+    paths:
+      - 'tools/eyewear_v1_4/**'
+      - '.github/workflows/compile-eyewear-v1-4.yml'
+  workflow_dispatch:
+jobs:
+  compile:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.7'
+      - name: Compile and verify game script
+        shell: pwsh
+        run: |
+          @'
+          import importlib.util
+          import py_compile
+          import zipfile
+          import pathlib
+          import sys
+          source = pathlib.Path('tools/eyewear_v1_4/realistic_glasses.py')
+          compiled = pathlib.Path('realistic_glasses.pyc')
+          output = pathlib.Path('Realistic_Glasses_v1_4_PLAYTEST.ts4script')
+          py_compile.compile(str(source), cfile=str(compiled), doraise=True)
+          with zipfile.ZipFile(str(output), 'w', zipfile.ZIP_DEFLATED) as z:
+              z.write(str(compiled), arcname='realistic_glasses.pyc')
+          with zipfile.ZipFile(str(output)) as z:
+              assert z.testzip() is None
+              assert z.namelist() == ['realistic_glasses.pyc']
+              assert z.read('realistic_glasses.pyc')[:4] == importlib.util.MAGIC_NUMBER
+          print('Python', sys.version, 'output bytes', output.stat().st_size)
+          '@ | Set-Content -Encoding UTF8 compile_playtest.py
+          python compile_playtest.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Realistic-Glasses-v1-4-Playtest
+          path: Realistic_Glasses_v1_4_PLAYTEST.ts4script
+          if-no-files-found: error
